@@ -2,11 +2,21 @@
 
 <div align="center">
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=flat&logo=docker&logoColor=white)](https://www.docker.com/)
+[![MySQL](https://img.shields.io/badge/mysql-%2300f.svg?style=flat&logo=mysql&logoColor=white)](https://www.mysql.com/)
+[![phpMyAdmin](https://img.shields.io/badge/phpmyadmin-%236C78AF.svg?style=flat&logo=phpmyadmin&logoColor=white)](https://www.phpmyadmin.net/)
+[![GitHub issues](https://img.shields.io/github/issues/fzbird/mysql-service)](https://github.com/fzbird/mysql-service/issues)
+[![GitHub stars](https://img.shields.io/github/stars/fzbird/mysql-service)](https://github.com/fzbird/mysql-service/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/fzbird/mysql-service)](https://github.com/fzbird/mysql-service/network)
+
+**一个基于 Docker 的独立共享 MySQL 数据库服务，支持多项目共享使用，具备完善的管理界面和监控功能。**
+
+[快速开始](#-快速开始) • [功能特性](#-项目简介) • [文档](#-安装与配置) • [贡献](#-贡献指南)
+
 ![MySQL](https://img.shields.io/badge/mysql-%2300f.svg?style=for-the-badge&logo=mysql&logoColor=white)
 ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
 ![phpMyAdmin](https://img.shields.io/badge/phpmyadmin-%236C78AF.svg?style=for-the-badge&logo=phpmyadmin&logoColor=white)
-
-一个基于 Docker 的独立共享 MySQL 数据库服务，支持多项目共享使用，具备完善的管理界面和监控功能。
 
 </div>
 
