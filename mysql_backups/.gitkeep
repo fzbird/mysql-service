@@ -1,0 +1,2 @@
+# 保持 mysql_backups 目录结构
+# 实际的备份文件会被 .gitignore 忽略 
