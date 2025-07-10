@@ -1,0 +1,145 @@
+# ========================================================================
+# 独立共享 MySQL 数据库服务配置
+# ========================================================================
+# 
+# 此配置包含：
+# - MySQL 8.0 数据库服务
+# - phpMyAdmin 管理界面
+# - MySQL Exporter 监控服务
+# - 完整的数据持久化和网络配置
+# 
+# 使用方法:
+#   1. 启动服务: docker-compose -f docker-compose.mysql.yml up -d
+#   2. 停止服务: docker-compose -f docker-compose.mysql.yml down
+#   3. 查看状态: docker-compose -f docker-compose.mysql.yml ps
+#   4. 查看日志: docker-compose -f docker-compose.mysql.yml logs
+#
+# 访问地址:
+#   - MySQL: localhost:3306
+#   - phpMyAdmin: http://localhost:9103
+#   - 监控指标: http://localhost:9104/metrics
+#
+# ========================================================================
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: mysql_db
+    restart: unless-stopped
+    environment:
+      # 基本配置
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-mysql_root_password_2024}
+      
+      # 性能优化配置
+      MYSQL_INNODB_BUFFER_POOL_SIZE: ${MYSQL_INNODB_BUFFER_POOL_SIZE:-512M}
+      MYSQL_MAX_CONNECTIONS: ${MYSQL_MAX_CONNECTIONS:-200}
+      
+      # 字符集配置
+      MYSQL_CHARSET: utf8mb4
+      MYSQL_COLLATION: utf8mb4_unicode_ci
+    
+    volumes:
+      # 数据持久化
+      - shared_mysql_data:/var/lib/mysql
+      
+      # 配置文件
+      - ./config/mysql.cnf:/etc/mysql/conf.d/custom.cnf:ro
+      
+      # 初始化脚本
+      - ./init/01-create-databases.sql:/docker-entrypoint-initdb.d/01-create-databases.sql:ro
+      
+      # 日志目录
+      - ./logs:/var/log/mysql
+    
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-mysql_root_password_2024}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+    
+    networks:
+      - shared-mysql-network
+
+  # phpMyAdmin 管理界面
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:5.2
+    container_name: mysql_admin_panel
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: ${MYSQL_ROOT_PASSWORD:-mysql_root_password_2024}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-mysql_root_password_2024}
+      PMA_ARBITRARY: 1
+      UPLOAD_LIMIT: 64M
+      MEMORY_LIMIT: 512M
+      MAX_EXECUTION_TIME: 600
+    ports:
+      - "${PHPMYADMIN_PORT:-9103}:9103"
+    volumes:
+      - ./logs/phpmyadmin:/var/log/phpmyadmin
+    networks:
+      - shared-mysql-network
+
+  # MySQL 监控服务
+  mysql-exporter:
+    image: prom/mysqld-exporter:v0.15.1
+    container_name: mysql_monitor
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATA_SOURCE_NAME: "monitor_user:monitor_pass_2024@(db:3306)/"
+    ports:
+      - "${MYSQL_EXPORTER_PORT:-9104}:9104"
+    command:
+      - --config.my-cnf=/etc/mysql-exporter.cnf
+      - --collect.info_schema.innodb_metrics
+      - --collect.info_schema.processlist
+      - --collect.info_schema.query_response_time
+      - --collect.info_schema.userstats
+      - --collect.info_schema.tables
+      - --collect.perf_schema.tablelocks
+      - --collect.perf_schema.file_events
+      - --collect.perf_schema.eventswaits
+      - --collect.perf_schema.indexiowaits
+      - --collect.perf_schema.tableiowaits
+    volumes:
+      - ./config/mysql-exporter.cnf:/etc/mysql-exporter.cnf:ro
+    networks:
+      - shared-mysql-network
+
+# 数据卷定义
+volumes:
+  shared_mysql_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./mysql_data
+
+# 网络定义
+networks:
+  shared-mysql-network:
+    name: shared-mysql-network
+    external: true 
