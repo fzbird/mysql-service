@@ -63,6 +63,41 @@ print_header() {
     echo ""
 }
 
+# 统一的配置加载函数
+load_config() {
+    if [ -f "$ENV_FILE" ]; then
+        source "$ENV_FILE"
+        print_info "已加载配置文件: $ENV_FILE"
+    else
+        print_error "找不到配置文件: $ENV_FILE"
+        print_error "请确保 mysql.env 文件存在，或使用 './mysql-service.sh interactive-setup' 创建配置"
+        exit 1
+    fi
+}
+
+# 验证必要的配置参数
+validate_config() {
+    load_config
+    
+    # 验证必要的配置项
+    if [ -z "$MYSQL_ROOT_PASSWORD" ]; then
+        print_error "配置错误: 未设置 MYSQL_ROOT_PASSWORD"
+        exit 1
+    fi
+    
+    if [ -z "$MYSQL_PORT" ]; then
+        print_error "配置错误: 未设置 MYSQL_PORT"
+        exit 1
+    fi
+    
+    if [ -z "$PHPMYADMIN_PORT" ]; then
+        print_error "配置错误: 未设置 PHPMYADMIN_PORT"
+        exit 1
+    fi
+    
+    print_success "配置验证通过"
+}
+
 # 检查系统要求
 check_requirements() {
     print_info "检查系统要求..."
@@ -118,10 +153,8 @@ init_environment() {
         print_success "网络创建成功"
     fi
     
-    # 检查配置文件
-    if [ ! -f "$ENV_FILE" ]; then
-        print_warning "找不到环境变量文件: $ENV_FILE，将使用默认配置"
-    fi
+    # 加载并验证配置
+    validate_config
     
     print_success "环境初始化完成"
 }
@@ -268,11 +301,13 @@ quick_start() {
     if [ -f "$ENV_FILE" ]; then
         docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d
     else
-        docker-compose -f "$COMPOSE_FILE" up -d
+        print_error "找不到配置文件: $ENV_FILE"
+        print_error "请使用 './mysql-service.sh interactive-setup' 创建配置文件"
+        exit 1
     fi
     
     print_info "等待服务启动..."
-    sleep 30
+    sleep 10
     
     # 验证启动状态
     if docker ps | grep -q "$CONTAINER_NAME"; then
@@ -306,7 +341,9 @@ start_service() {
     if [ -f "$ENV_FILE" ]; then
         docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d
     else
-        docker-compose -f "$COMPOSE_FILE" up -d
+        print_error "找不到配置文件: $ENV_FILE"
+        print_error "请使用 './mysql-service.sh interactive-setup' 创建配置文件"
+        exit 1
     fi
     
     print_info "等待服务启动..."
@@ -387,36 +424,34 @@ show_service_status() {
 
 # 显示连接信息
 show_connection_info() {
+    load_config
+    
     print_separator
     print_info "MySQL 服务连接信息："
-    
-    if [ -f "$ENV_FILE" ]; then
-        source "$ENV_FILE"
-    fi
     
     echo ""
     echo "🔗 数据库连接:"
     echo "  主机: localhost"
-    echo "  端口: ${MYSQL_PORT:-3306}"
-    echo "  管理员: root / ${MYSQL_ROOT_PASSWORD:-mysql_root_password_2024}"
+    echo "  端口: $MYSQL_PORT"
+    echo "  管理员: root / $MYSQL_ROOT_PASSWORD"
     
     echo ""
     echo "🗄️ 预配置项目数据库:"
-    echo "  Gallery: gallery_db (用户: gallery_user / gallery_pass_2024)"
-    echo "  AuraClass: AuraClass_db (用户: AuraClass_user / AuraClass_pass_2024)"
-    echo "  CWCC: cwcc_db (用户: cwcc_user / cwcc_pass_2024)"
+    echo "  Gallery: $GALLERY_DB_NAME (用户: $GALLERY_DB_USER / $GALLERY_DB_PASSWORD)"
+    echo "  AuraClass: $AURACLASS_DB_NAME (用户: $AURACLASS_DB_USER / $AURACLASS_DB_PASSWORD)"
+    echo "  CWCC: $CWCC_DB_NAME (用户: $CWCC_DB_USER / $CWCC_DB_PASSWORD)"
     echo ""
     echo "💡 提示: 可以使用 './mysql-service.sh add-project <项目名>' 添加新的项目数据库"
     
     echo ""
     echo "🌐 管理界面:"
-    echo "  phpMyAdmin: http://localhost:${PHPMYADMIN_PORT:-9103}"
-    echo "  MySQL 监控: http://localhost:${MYSQL_EXPORTER_PORT:-9104}/metrics"
+    echo "  phpMyAdmin: http://localhost:$PHPMYADMIN_PORT"
+    echo "  MySQL 监控: http://localhost:$MYSQL_EXPORTER_PORT/metrics"
     
     echo ""
     echo "💻 连接示例:"
-    echo "  mysql -h localhost -P ${MYSQL_PORT:-3306} -u gallery_user -p gallery_db"
-    echo "  mysql://gallery_user:gallery_pass_2024@localhost:${MYSQL_PORT:-3306}/gallery_db"
+    echo "  mysql -h localhost -P $MYSQL_PORT -u $GALLERY_DB_USER -p $GALLERY_DB_NAME"
+    echo "  mysql://$GALLERY_DB_USER:$GALLERY_DB_PASSWORD@localhost:$MYSQL_PORT/$GALLERY_DB_NAME"
     
     echo ""
     echo "🐳 Docker 网络连接 (容器内):"
@@ -478,12 +513,8 @@ backup_databases() {
     
     mkdir -p "$BACKUP_DIR"
     
-    if [ -f "$ENV_FILE" ]; then
-        source "$ENV_FILE"
-        MYSQL_PASSWORD="${MYSQL_ROOT_PASSWORD:-mysql_root_password_2024}"
-    else
-        MYSQL_PASSWORD="mysql_root_password_2024"
-    fi
+    load_config
+    MYSQL_PASSWORD="$MYSQL_ROOT_PASSWORD"
     
     # 备份各个项目数据库
     DATABASES=("gallery_db" "AuraClass_db" "cwcc_db")
@@ -531,12 +562,8 @@ connect_mysql() {
         exit 1
     fi
     
-    if [ -f "$ENV_FILE" ]; then
-        source "$ENV_FILE"
-        MYSQL_PASSWORD="${MYSQL_ROOT_PASSWORD:-mysql_root_password_2024}"
-    else
-        MYSQL_PASSWORD="mysql_root_password_2024"
-    fi
+    load_config
+    MYSQL_PASSWORD="$MYSQL_ROOT_PASSWORD"
     
     echo "选择连接方式："
     echo "1. root 用户 (管理员)"
@@ -582,12 +609,8 @@ add_project() {
         exit 1
     fi
     
-    if [ -f "$ENV_FILE" ]; then
-        source "$ENV_FILE"
-        MYSQL_PASSWORD="${MYSQL_ROOT_PASSWORD:-mysql_root_password_2024}"
-    else
-        MYSQL_PASSWORD="mysql_root_password_2024"
-    fi
+    load_config
+    MYSQL_PASSWORD="$MYSQL_ROOT_PASSWORD"
     
     # 生成数据库和用户名
     DB_NAME="${project_name}_db"
@@ -633,12 +656,8 @@ list_databases() {
         exit 1
     fi
     
-    if [ -f "$ENV_FILE" ]; then
-        source "$ENV_FILE"
-        MYSQL_PASSWORD="${MYSQL_ROOT_PASSWORD:-mysql_root_password_2024}"
-    else
-        MYSQL_PASSWORD="mysql_root_password_2024"
-    fi
+    load_config
+    MYSQL_PASSWORD="$MYSQL_ROOT_PASSWORD"
     
     print_info "数据库列表："
     docker exec "$CONTAINER_NAME" mysql -u root -p"$MYSQL_PASSWORD" -e "SHOW DATABASES;" | grep -v "information_schema\|performance_schema\|mysql\|sys\|Database"
