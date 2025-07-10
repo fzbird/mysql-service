@@ -14,7 +14,7 @@ logs/*/*.log
 !logs/phpmyadmin/.gitkeep
 
 # 环境变量文件（可选，根据需要决定是否忽略）
-# mysql.env
+mysql.env
 
 # Docker 卷数据
 .volumes/
