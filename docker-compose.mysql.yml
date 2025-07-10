@@ -94,8 +94,9 @@ services:
       MEMORY_LIMIT: 512M
       MAX_EXECUTION_TIME: 600
     ports:
-      - "${PHPMYADMIN_PORT:-9103}:9103"
+      - "${PHPMYADMIN_PORT:-9103}:80"
     volumes:
+      - ./config/phpmyadmin.conf:/etc/apache2/conf.d/z-phpmyadmin.conf:ro
       - ./logs/phpmyadmin:/var/log/phpmyadmin
     networks:
       - shared-mysql-network
